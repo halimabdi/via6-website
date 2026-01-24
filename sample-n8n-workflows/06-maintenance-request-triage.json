@@ -1,0 +1,318 @@
+{
+  "name": "Maintenance Request Triage - Property Management",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maintenance-request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Tenant Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "maintenance-request"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ 'Analyze this maintenance request and classify it:\\n\\nIssue: ' + $json.issue + '\\n\\nRespond in JSON format with:\\n{\\n  \"urgency\": \"emergency|urgent|routine\",\\n  \"category\": \"plumbing|electrical|hvac|appliance|structural|other\",\\n  \"estimatedCost\": \"low|medium|high\",\\n  \"tenantPresenceRequired\": true|false,\\n  \"reasoning\": \"brief explanation\"\\n}\\n\\nEmergency examples: no heat in winter, water leak, gas smell, no electricity, sewage backup\\nUrgent examples: broken appliance, minor leak, broken lock\\nRoutine examples: cosmetic issues, general maintenance' }}"
+            }
+          ]
+        }
+      },
+      "name": "AI - Classify Urgency",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const classification = JSON.parse($json.response);\n\nreturn {\n  ...classification,\n  tenantName: $('Webhook - Tenant Request').item.json.tenantName,\n  tenantPhone: $('Webhook - Tenant Request').item.json.tenantPhone,\n  tenantEmail: $('Webhook - Tenant Request').item.json.tenantEmail,\n  propertyAddress: $('Webhook - Tenant Request').item.json.propertyAddress,\n  unitNumber: $('Webhook - Tenant Request').item.json.unitNumber,\n  issue: $('Webhook - Tenant Request').item.json.issue,\n  issueDescription: $('Webhook - Tenant Request').item.json.issueDescription,\n  photoUrls: $('Webhook - Tenant Request').item.json.photoUrls || [],\n  submittedAt: $now\n};"
+      },
+      "name": "Combine Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.urgency }}",
+              "operation": "equals",
+              "value2": "emergency"
+            }
+          ]
+        }
+      },
+      "name": "Check Urgency Level",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $env.ON_CALL_MANAGER_PHONE }}",
+        "message": "🚨 EMERGENCY MAINTENANCE\n\nTenant: {{ $json.tenantName }}\nProperty: {{ $json.propertyAddress }} #{{ $json.unitNumber }}\nIssue: {{ $json.issue }}\n\nAI Assessment: {{ $json.reasoning }}\n\nCall tenant immediately: {{ $json.tenantPhone }}"
+      },
+      "name": "SMS On-Call Manager (Emergency)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 150],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "Vendors!A:D",
+        "options": {}
+      },
+      "name": "Get Preferred Vendors (Urgent)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1050, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const category = $('Combine Data').item.json.category;\nconst vendors = $input.all();\n\nconst matchingVendor = vendors.find(v => \n  v.json.specialty.toLowerCase() === category.toLowerCase()\n);\n\nif (!matchingVendor) {\n  return $('Combine Data').item.json;\n}\n\nreturn {\n  ...$('Combine Data').item.json,\n  vendorName: matchingVendor.json.vendor_name,\n  vendorPhone: matchingVendor.json.phone,\n  vendorEmail: matchingVendor.json.email\n};"
+      },
+      "name": "Match Vendor by Category",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "workOrder",
+        "operation": "create",
+        "additionalFields": {
+          "property_address": "={{ $json.propertyAddress }}",
+          "unit_number": "={{ $json.unitNumber }}",
+          "tenant_name": "={{ $json.tenantName }}",
+          "tenant_phone": "={{ $json.tenantPhone }}",
+          "issue_category": "={{ $json.category }}",
+          "issue_description": "={{ $json.issueDescription }}",
+          "urgency": "={{ $json.urgency }}",
+          "assigned_vendor": "={{ $json.vendorName }}",
+          "status": "assigned",
+          "estimated_cost": "={{ $json.estimatedCost }}",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "name": "Create Work Order",
+      "type": "n8n-nodes-base.buildium",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "buildiumApi": {
+          "id": "1",
+          "name": "Buildium"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $json.vendorEmail }}",
+        "subject": "[{{ $json.urgency.toUpperCase() }}] Work Order - {{ $json.propertyAddress }}",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html>\n<html>\n<body>\n  <h2>New Work Order Assigned</h2>\n  <p><strong>Urgency:</strong> <span style=\"color: {{ $json.urgency === 'emergency' ? 'red' : ($json.urgency === 'urgent' ? 'orange' : 'green') }};\">{{ $json.urgency.toUpperCase() }}</span></p>\n  \n  <h3>Property Details</h3>\n  <p>{{ $json.propertyAddress }}, Unit {{ $json.unitNumber }}</p>\n  \n  <h3>Issue</h3>\n  <p><strong>Category:</strong> {{ $json.category }}</p>\n  <p><strong>Description:</strong> {{ $json.issueDescription }}</p>\n  \n  <h3>Tenant Contact</h3>\n  <p><strong>Name:</strong> {{ $json.tenantName }}</p>\n  <p><strong>Phone:</strong> {{ $json.tenantPhone }}</p>\n  <p><strong>Entry Required:</strong> {{ $json.tenantPresenceRequired ? 'Yes - coordinate with tenant' : 'No - use lockbox' }}</p>\n  \n  <h3>Work Order #{{ $('Create Work Order').item.json.workOrderId }}</h3>\n  \n  <p>Please {{ $json.urgency === 'emergency' ? 'respond within 2 hours' : ($json.urgency === 'urgent' ? 'respond within 24 hours' : 'schedule within 3-5 business days') }}.</p>\n</body>\n</html>"
+      },
+      "name": "Email Vendor Assignment",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1650, 200],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $json.tenantEmail }}",
+        "subject": "Maintenance Request Received - {{ $json.issue }}",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html>\n<html>\n<body>\n  <h2>Hi {{ $json.tenantName }},</h2>\n  <p>We've received your maintenance request and it has been classified as <strong>{{ $json.urgency }}</strong>.</p>\n  \n  <div style=\"background: #f0f0f0; padding: 20px; margin: 20px 0;\">\n    <p><strong>Issue:</strong> {{ $json.issue }}</p>\n    <p><strong>Work Order #:</strong> {{ $('Create Work Order').item.json.workOrderId }}</p>\n    <p><strong>Assigned to:</strong> {{ $json.vendorName }}</p>\n  </div>\n  \n  <p><strong>Expected Response Time:</strong> {{ $json.urgency === 'emergency' ? 'Within 2 hours' : ($json.urgency === 'urgent' ? 'Within 24 hours' : '3-5 business days') }}</p>\n  \n  <p>{{ $json.tenantPresenceRequired ? 'The vendor will contact you to schedule access to your unit.' : 'If needed, the vendor will use the property lockbox to access your unit.' }}</p>\n  \n  <p>You'll receive updates as work progresses.</p>\n  \n  <p>Thank you,<br>Property Management Team</p>\n</body>\n</html>"
+      },
+      "name": "Email Tenant Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_MAINTENANCE_CHANNEL }}",
+        "text": "🔧 New Maintenance Request\n\n*Urgency:* {{ $json.urgency }}\n*Property:* {{ $json.propertyAddress }} #{{ $json.unitNumber }}\n*Issue:* {{ $json.issue }}\n*Assigned:* {{ $json.vendorName }}\n*Work Order:* #{{ $('Create Work Order').item.json.workOrderId }}\n\nAI Assessment: {{ $json.reasoning }}"
+      },
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": \"Maintenance request received and processed\",\n  \"workOrderId\": $('Create Work Order').item.json.workOrderId,\n  \"urgency\": $json.urgency,\n  \"assignedVendor\": $json.vendorName,\n  \"expectedResponse\": $json.urgency === 'emergency' ? '2 hours' : ($json.urgency === 'urgent' ? '24 hours' : '3-5 days')\n} }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Tenant Request": {
+      "main": [
+        [
+          {
+            "node": "AI - Classify Urgency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Classify Urgency": {
+      "main": [
+        [
+          {
+            "node": "Combine Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Data": {
+      "main": [
+        [
+          {
+            "node": "Check Urgency Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Urgency Level": {
+      "main": [
+        [
+          {
+            "node": "SMS On-Call Manager (Emergency)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Preferred Vendors (Urgent)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Preferred Vendors (Urgent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Preferred Vendors (Urgent)": {
+      "main": [
+        [
+          {
+            "node": "Match Vendor by Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Vendor by Category": {
+      "main": [
+        [
+          {
+            "node": "Create Work Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Work Order": {
+      "main": [
+        [
+          {
+            "node": "Email Vendor Assignment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Tenant Confirmation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Tenant Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

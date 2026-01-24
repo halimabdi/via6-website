@@ -1,0 +1,313 @@
+{
+  "name": "Customer Win-Back Campaign - E-commerce",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "name": "Schedule - Daily 10am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "customer",
+        "operation": "getAll",
+        "filters": {
+          "lastOrderDate": "={{ $now.minus({days: 60}).toISO() }}",
+          "status": "active"
+        }
+      },
+      "name": "Get Dormant Customers",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "shopifyApi": {
+          "id": "1",
+          "name": "Shopify"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Segment by last purchase category\nconst customer = $json;\nconst orders = customer.orders || [];\n\nif (orders.length === 0) return null;\n\nconst lastOrder = orders[0];\nconst lastCategory = lastOrder.line_items[0]?.product_type || 'general';\nconst totalSpent = parseFloat(customer.total_spent);\n\n// Calculate customer value tier\nlet tier = 'bronze';\nlet discountPercent = 10;\n\nif (totalSpent > 500) {\n  tier = 'gold';\n  discountPercent = 20;\n} else if (totalSpent > 200) {\n  tier = 'silver';\n  discountPercent = 15;\n}\n\nreturn {\n  customerId: customer.id,\n  email: customer.email,\n  firstName: customer.first_name,\n  lastName: customer.last_name,\n  phone: customer.phone,\n  lastPurchaseCategory: lastCategory,\n  daysSinceLastOrder: Math.floor((new Date() - new Date(lastOrder.created_at)) / (1000 * 60 * 60 * 24)),\n  totalSpent: totalSpent,\n  tier: tier,\n  discountPercent: discountPercent,\n  discountCode: `WINBACK${discountPercent}`\n};"
+      },
+      "name": "Segment & Calculate Offer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.email !== null && $json.email !== '' }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Has Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "product",
+        "operation": "getAll",
+        "filters": {
+          "product_type": "={{ $json.lastPurchaseCategory }}",
+          "limit": 3
+        }
+      },
+      "name": "Get Recommended Products",
+      "type": "n8n-nodes-base.shopify",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "shopifyApi": {
+          "id": "1",
+          "name": "Shopify"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ 'Write a personalized win-back email for:\\n\\nCustomer: ' + $('Segment & Calculate Offer').item.json.firstName + '\\nTier: ' + $('Segment & Calculate Offer').item.json.tier + '\\nLast purchased: ' + $('Segment & Calculate Offer').item.json.lastPurchaseCategory + '\\nDays since order: ' + $('Segment & Calculate Offer').item.json.daysSinceLastOrder + '\\nDiscount: ' + $('Segment & Calculate Offer').item.json.discountPercent + '%\\n\\nTone: Warm, personal, not pushy. Max 100 words. Include the discount code: ' + $('Segment & Calculate Offer').item.json.discountCode }}"
+            }
+          ]
+        }
+      },
+      "name": "AI - Generate Email Copy",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const customer = $('Segment & Calculate Offer').item.json;\nconst products = $('Get Recommended Products').all();\nconst emailBody = $json.response;\n\n// Build product recommendations HTML\nconst productHtml = products.map(p => `\n  <div style=\"display: inline-block; width: 30%; margin: 10px; text-align: center;\">\n    <img src=\"${p.json.images[0]?.src}\" style=\"width: 100%; border-radius: 8px;\" />\n    <h4>${p.json.title}</h4>\n    <p style=\"font-size: 18px; font-weight: bold;\">$${p.json.variants[0]?.price}</p>\n    <a href=\"https://yourstore.com/products/${p.json.handle}\" style=\"background: #00D4AA; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;\">Shop Now</a>\n  </div>\n`).join('');\n\nreturn {\n  ...customer,\n  emailBody: emailBody,\n  productRecommendations: productHtml\n};"
+      },
+      "name": "Build Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "We miss you, {{ $json.firstName }}! Here's {{ $json.discountPercent }}% off",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html>\n<html>\n<body style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">\n  <div style=\"background: linear-gradient(135deg, #00D4AA 0%, #6366F1 100%); padding: 30px; text-align: center; color: white;\">\n    <h1>We Miss You, {{ $json.firstName }}! 👋</h1>\n  </div>\n  \n  <div style=\"padding: 30px;\">\n    {{ $json.emailBody }}\n    \n    <div style=\"background: #f8f8f8; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px;\">\n      <h2 style=\"color: #00D4AA; margin: 0;\">{{ $json.discountPercent }}% OFF</h2>\n      <p style=\"font-size: 24px; font-weight: bold; margin: 10px 0;\">{{ $json.discountCode }}</p>\n      <p style=\"font-size: 14px; color: #666;\">Valid for 7 days</p>\n    </div>\n    \n    <h3>You might like these:</h3>\n    <div style=\"text-align: center;\">\n      {{ $json.productRecommendations }}\n    </div>\n    \n    <div style=\"text-align: center; margin-top: 40px;\">\n      <a href=\"https://yourstore.com\" style=\"background: #00D4AA; color: white; padding: 15px 40px; text-decoration: none; border-radius: 4px; font-size: 18px; font-weight: bold;\">Shop Now</a>\n    </div>\n  </div>\n  \n  <div style=\"background: #f0f0f0; padding: 20px; text-align: center; font-size: 12px; color: #666;\">\n    <p>No longer interested? <a href=\"{{unsubscribe}}\">Unsubscribe</a></p>\n  </div>\n</body>\n</html>"
+      },
+      "name": "Send Win-Back Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1650, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "WinBackCampaign!A:H",
+        "options": {
+          "values": {
+            "date": "={{ $now }}",
+            "customerId": "={{ $json.customerId }}",
+            "email": "={{ $json.email }}",
+            "tier": "={{ $json.tier }}",
+            "discountOffered": "={{ $json.discountPercent }}%",
+            "daysSinceLastOrder": "={{ $json.daysSinceLastOrder }}",
+            "status": "email_sent",
+            "followUpScheduled": "={{ $now.plus({days: 7}).toISO() }}"
+          }
+        }
+      },
+      "name": "Track Campaign in Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $('Segment & Calculate Offer').item.json.daysSinceLastOrder }}",
+              "operation": "larger",
+              "value2": 67
+            }
+          ]
+        }
+      },
+      "name": "No Response After 7 Days?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $('Segment & Calculate Offer').item.json.phone }}",
+        "message": "Hi {{ $('Segment & Calculate Offer').item.json.firstName }}! 👋 We noticed you haven't shopped with us in a while. Use code {{ $('Segment & Calculate Offer').item.json.discountCode }} for {{ $('Segment & Calculate Offer').item.json.discountPercent + 5 }}% off (upgraded just for you!). Shop: {{ $env.STORE_URL }}"
+      },
+      "name": "Send SMS Follow-Up (Higher Discount)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [2250, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule - Daily 10am": {
+      "main": [
+        [
+          {
+            "node": "Get Dormant Customers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Dormant Customers": {
+      "main": [
+        [
+          {
+            "node": "Segment & Calculate Offer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Segment & Calculate Offer": {
+      "main": [
+        [
+          {
+            "node": "Has Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Email?": {
+      "main": [
+        [
+          {
+            "node": "Get Recommended Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recommended Products": {
+      "main": [
+        [
+          {
+            "node": "AI - Generate Email Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Generate Email Copy": {
+      "main": [
+        [
+          {
+            "node": "Build Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Win-Back Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Win-Back Email": {
+      "main": [
+        [
+          {
+            "node": "Track Campaign in Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Campaign in Sheets": {
+      "main": [
+        [
+          {
+            "node": "No Response After 7 Days?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Response After 7 Days?": {
+      "main": [
+        [
+          {
+            "node": "Send SMS Follow-Up (Higher Discount)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

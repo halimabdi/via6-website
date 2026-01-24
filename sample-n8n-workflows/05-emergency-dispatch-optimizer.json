@@ -1,0 +1,242 @@
+{
+  "name": "Emergency Dispatch Optimizer - HVAC/Plumbing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency-call",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Emergency Call",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "emergency-call"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "OnCallSchedule!A:E",
+        "options": {}
+      },
+      "name": "Get On-Call Schedule",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const now = new Date();\nconst dayOfWeek = now.getDay(); // 0 = Sunday\nconst hour = now.getHours();\n\n// Find who's on call right now\nconst schedule = $input.all();\nconst onCallTech = schedule.find(tech => {\n  const startDay = parseInt(tech.json.start_day);\n  const endDay = parseInt(tech.json.end_day);\n  const startHour = parseInt(tech.json.start_hour);\n  const endHour = parseInt(tech.json.end_hour);\n  \n  return dayOfWeek >= startDay && dayOfWeek <= endDay && \n         hour >= startHour && hour < endHour;\n});\n\nif (!onCallTech) {\n  throw new Error('No technician on call right now');\n}\n\nreturn {\n  techName: onCallTech.json.name,\n  techPhone: onCallTech.json.phone,\n  techId: onCallTech.json.tech_id,\n  customerName: $('Webhook - Emergency Call').item.json.customerName,\n  customerPhone: $('Webhook - Emergency Call').item.json.customerPhone,\n  customerAddress: $('Webhook - Emergency Call').item.json.customerAddress,\n  issueType: $('Webhook - Emergency Call').item.json.issueType,\n  issueDescription: $('Webhook - Emergency Call').item.json.issueDescription,\n  urgency: $('Webhook - Emergency Call').item.json.urgency || 'high'\n};"
+      },
+      "name": "Find Available Tech",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $json.techPhone }}",
+        "message": "🚨 EMERGENCY JOB ALERT\n\nCustomer: {{ $json.customerName }}\nIssue: {{ $json.issueType }}\nDescription: {{ $json.issueDescription }}\nAddress: {{ $json.customerAddress }}\n\nReply YES to accept this job\nReply NO if unavailable"
+      },
+      "name": "SMS Tech with Job Details",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "ticket",
+        "operation": "create",
+        "additionalFields": {
+          "customer_name": "={{ $json.customerName }}",
+          "customer_phone": "={{ $json.customerPhone }}",
+          "customer_address": "={{ $json.customerAddress }}",
+          "issue_type": "={{ $json.issueType }}",
+          "description": "={{ $json.issueDescription }}",
+          "urgency": "emergency",
+          "assigned_to": "={{ $json.techId }}",
+          "status": "dispatched",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "name": "Create Job Ticket",
+      "type": "n8n-nodes-base.serviceM8",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "credentials": {
+        "serviceM8Api": {
+          "id": "1",
+          "name": "ServiceM8"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $json.customerPhone }}",
+        "message": "Hi {{ $json.customerName }}, we've received your emergency service request for {{ $json.issueType }}.\n\nTechnician {{ $json.techName }} has been notified and will contact you within 15 minutes with an ETA.\n\nJob #{{ $('Create Job Ticket').item.json.ticket_number }}"
+      },
+      "name": "SMS Customer Confirmation",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_DISPATCH_CHANNEL }}",
+        "text": "🚨 Emergency Dispatch\n\n*Customer:* {{ $json.customerName }}\n*Issue:* {{ $json.issueType }}\n*Location:* {{ $json.customerAddress }}\n*Assigned:* {{ $json.techName }}\n*Job #:* {{ $('Create Job Ticket').item.json.ticket_number }}\n\n✅ Tech notified via SMS\n✅ Customer confirmation sent"
+      },
+      "name": "Notify Dispatch Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "="{{ $env.GOOGLE_SHEET_ID }}",
+        "range": "EmergencyLog!A:H",
+        "options": {
+          "values": {
+            "timestamp": "={{ $now }}",
+            "customerName": "={{ $json.customerName }}",
+            "issueType": "={{ $json.issueType }}",
+            "assignedTech": "={{ $json.techName }}",
+            "jobNumber": "={{ $('Create Job Ticket').item.json.ticket_number }}",
+            "status": "dispatched",
+            "customerNotified": "yes",
+            "techNotified": "yes"
+          }
+        }
+      },
+      "name": "Log Emergency Call",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": \"Emergency dispatched\",\n  \"techName\": $json.techName,\n  \"jobNumber\": $('Create Job Ticket').item.json.ticket_number,\n  \"eta\": \"15 minutes\"\n} }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Emergency Call": {
+      "main": [
+        [
+          {
+            "node": "Get On-Call Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get On-Call Schedule": {
+      "main": [
+        [
+          {
+            "node": "Find Available Tech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Available Tech": {
+      "main": [
+        [
+          {
+            "node": "SMS Tech with Job Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS Tech with Job Details": {
+      "main": [
+        [
+          {
+            "node": "Create Job Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SMS Customer Confirmation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Dispatch Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SMS Customer Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Log Emergency Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Emergency Call": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

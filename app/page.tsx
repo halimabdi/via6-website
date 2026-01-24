@@ -1,8 +1,11 @@
 import { HeroSection } from "@/components/hero-section"
 import { ProblemSolutionSection } from "@/components/problem-solution-section"
 import { ServicesSection } from "@/components/services-section"
+import { IndustryUseCases } from "@/components/industry-use-cases"
+import { WebDevelopmentSection } from "@/components/web-development-section"
 import { ProcessSection } from "@/components/process-section"
 import { PricingSection } from "@/components/pricing-section"
+import { FAQSection } from "@/components/faq-section"
 import { AboutSection } from "@/components/about-section"
 import { ContactSection } from "@/components/contact-section"
 import { Footer } from "@/components/footer"
@@ -27,8 +30,11 @@ export default function HomePage() {
         <HeroSection />
         <ProblemSolutionSection />
         <ServicesSection />
+        <IndustryUseCases />
+        <WebDevelopmentSection />
         <ProcessSection />
         <PricingSection />
+        <FAQSection />
         <AboutSection />
         <ContactSection />
         <Footer />

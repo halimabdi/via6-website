@@ -11,11 +11,11 @@ export function Footer() {
           <div className="md:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <Image
-                src="/logo-full.png"
+                src="/logo.svg"
                 alt="Via6 AI Labs"
-                width={120}
-                height={35}
-                className="h-8 w-auto"
+                width={220}
+                height={52}
+                className="h-12 w-auto"
               />
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
@@ -25,6 +25,7 @@ export function Footer() {
               <a
                 href="mailto:hello@via6ai.com"
                 className="w-9 h-9 rounded-lg glass flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Send us an email"
               >
                 <Mail className="h-4 w-4" />
               </a>
@@ -33,6 +34,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-lg glass flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Visit our LinkedIn"
               >
                 <Linkedin className="h-4 w-4" />
               </a>

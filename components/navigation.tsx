@@ -8,7 +8,7 @@ import { Menu, X } from "lucide-react"
 
 const navLinks = [
   { href: "#services", label: "Services" },
-  { href: "#process", label: "Process" },
+  { href: "#use-cases", label: "Use Cases" },
   { href: "#pricing", label: "Pricing" },
   { href: "#about", label: "About" },
 ]
@@ -16,7 +16,6 @@ const navLinks = [
 export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50)
@@ -25,6 +24,17 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isMobileMenuOpen])
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
       isScrolled ? "glass border-b border-white/5" : "bg-transparent"
@@ -32,13 +42,13 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Image
-              src="/logo-full.png"
+              src="/logo.svg"
               alt="Via6 AI Labs"
-              width={140}
-              height={40}
-              className="h-9 w-auto"
+              width={220}
+              height={52}
+              className="h-11 sm:h-13 w-auto"
               priority
             />
           </Link>
@@ -63,6 +73,7 @@ export function Navigation() {
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="md:hidden p-2 text-muted-foreground hover:text-foreground"
+            aria-label="Toggle mobile menu"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>

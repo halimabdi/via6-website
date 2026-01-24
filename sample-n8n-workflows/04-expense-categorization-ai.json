@@ -1,0 +1,236 @@
+{
+  "name": "Smart Expense Categorization Engine - Accounting",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "expense-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Receipt Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "expense-upload"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "messages": {
+          "values": [
+            {
+              "content": "={{ 'Extract the following from this receipt image: vendor name, total amount, date, and expense category (meals, travel, office supplies, utilities, professional services, etc.)' }}"
+            }
+          ]
+        },
+        "options": {
+          "imageUrl": "={{ $json.receiptImageUrl }}"
+        }
+      },
+      "name": "AI - Extract Receipt Data",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const extracted = JSON.parse($json.response);\nconst amount = parseFloat(extracted.amount);\n\n// Custom categorization rules\nconst vendor = extracted.vendor.toLowerCase();\nlet category = extracted.category;\nlet needsReview = false;\n\n// Flag outliers\nif (amount > 500) {\n  needsReview = true;\n}\n\n// Apply business-specific rules\nif (vendor.includes('amazon') && category === 'office supplies' && amount > 200) {\n  needsReview = true;\n}\n\nif (vendor.includes('uber') || vendor.includes('lyft')) {\n  category = 'transportation';\n}\n\nreturn {\n  vendor: extracted.vendor,\n  amount: amount,\n  date: extracted.date,\n  category: category,\n  needsReview: needsReview,\n  clientId: $json.clientId,\n  receiptUrl: $json.receiptImageUrl\n};"
+      },
+      "name": "Apply Categorization Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsReview }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Needs Review?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "resource": "expense",
+        "operation": "create",
+        "additionalFields": {
+          "vendor": "={{ $json.vendor }}",
+          "amount": "={{ $json.amount }}",
+          "date": "={{ $json.date }}",
+          "category": "={{ $json.category }}",
+          "receipt_url": "={{ $json.receiptUrl }}",
+          "client_id": "={{ $json.clientId }}",
+          "auto_categorized": true
+        }
+      },
+      "name": "Create Expense in QuickBooks",
+      "type": "n8n-nodes-base.quickbooks",
+      "typeVersion": 1,
+      "position": [1050, 200],
+      "credentials": {
+        "quickBooksOAuth2Api": {
+          "id": "1",
+          "name": "QuickBooks"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_ACCOUNTING_CHANNEL }}",
+        "text": "⚠️ Expense Needs Review\n\n*Client:* {{ $json.clientId }}\n*Vendor:* {{ $json.vendor }}\n*Amount:* ${{ $json.amount }}\n*Category:* {{ $json.category }}\n*Reason:* Amount exceeds $500 threshold\n\n[Review Receipt]({{ $json.receiptUrl }})"
+      },
+      "name": "Flag for Review in Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "Flagged!A:G",
+        "options": {
+          "values": {
+            "clientId": "={{ $json.clientId }}",
+            "vendor": "={{ $json.vendor }}",
+            "amount": "={{ $json.amount }}",
+            "category": "={{ $json.category }}",
+            "date": "={{ $json.date }}",
+            "flagged_date": "={{ $now }}",
+            "receipt_url": "={{ $json.receiptUrl }}"
+          }
+        }
+      },
+      "name": "Log Flagged Expense",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1250, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": $json.needsReview ? \"Expense flagged for review\" : \"Expense categorized and posted\",\n  \"category\": $json.category,\n  \"amount\": $json.amount,\n  \"needsReview\": $json.needsReview\n} }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receipt Upload": {
+      "main": [
+        [
+          {
+            "node": "AI - Extract Receipt Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Extract Receipt Data": {
+      "main": [
+        [
+          {
+            "node": "Apply Categorization Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Categorization Rules": {
+      "main": [
+        [
+          {
+            "node": "Needs Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Review?": {
+      "main": [
+        [
+          {
+            "node": "Create Expense in QuickBooks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag for Review in Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Expense in QuickBooks": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flag for Review in Slack": {
+      "main": [
+        [
+          {
+            "node": "Log Flagged Expense",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Flagged Expense": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

@@ -1,0 +1,152 @@
+{
+  "name": "Lead Capture & Distribution - Real Estate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - New Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "new-lead-webhook"
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "firstName": "={{ $json.firstName }}",
+          "lastName": "={{ $json.lastName }}",
+          "phone": "={{ $json.phone }}",
+          "properties": {
+            "lead_source": "={{ $json.source }}",
+            "lead_type": "Website Form",
+            "lead_date": "={{ $now }}"
+          }
+        }
+      },
+      "name": "Create Contact in CRM",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $json.phone }}",
+        "message": "Hi {{ $json.firstName }}! Thanks for your interest in [Property Address]. I'm excited to help you! Here's my calendar to book a showing: https://cal.com/agent/showing\n\n- [Your Name], Realtor"
+      },
+      "name": "Send SMS to Lead",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.SLACK_CHANNEL }}",
+        "text": "🔥 New Lead Alert!\n\nName: {{ $json.firstName }} {{ $json.lastName }}\nEmail: {{ $json.email }}\nPhone: {{ $json.phone }}\nSource: {{ $json.source }}\nInterest: {{ $json.interest }}\n\nSMS sent automatically ✅"
+      },
+      "name": "Notify Team on Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "📱 New Lead: {{ $json.firstName }} {{ $json.lastName }}\n📧 {{ $json.email }}\n📞 {{ $json.phone }}\n\nRespond within 60 seconds for best conversion!"
+      },
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [650, 400],
+      "credentials": {
+        "telegramApi": {
+          "id": "1",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Thank you! We'll contact you within 60 seconds.\" } }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - New Lead": {
+      "main": [
+        [
+          {
+            "node": "Create Contact in CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Contact in CRM": {
+      "main": [
+        [
+          {
+            "node": "Send SMS to Lead",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Team on Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team on Slack": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

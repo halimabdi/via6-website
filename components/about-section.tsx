@@ -7,44 +7,46 @@ export function AboutSection() {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="font-display font-bold text-4xl sm:text-5xl mb-6">
-              Built in Toronto,{" "}
+              New Company,{" "}
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                For the World
+                Proven Expertise
               </span>
             </h2>
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              We're a Canadian-incorporated agency bringing world-class AI automation to businesses that want to scale
-              smarter, not harder.
+              Via6 AI Labs is a new Canadian agency, which means you get founding client benefits:
+              direct access to the founder, priority treatment, and discounted rates.
             </p>
-            <p className="text-muted-foreground leading-relaxed">
-              Our team combines deep technical expertise with a practical understanding of business operations. We don't
-              just build automation—we build systems that make your team more effective and your business more
-              profitable.
+            <p className="text-muted-foreground leading-relaxed mb-4">
+              We're building our reputation one satisfied client at a time. Your success is our success,
+              and we'll go above and beyond to earn your testimonial.
             </p>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+              <span className="text-sm font-semibold text-primary">💯 100% Money-Back Guarantee</span>
+            </div>
           </div>
 
           <div className="space-y-6">
-            <div className="glass rounded-xl p-6">
+            <div className="gradient-border rounded-xl p-6">
               <MapPin className="h-8 w-8 text-primary mb-4" />
-              <h3 className="font-display font-semibold text-xl mb-2">Toronto-Based</h3>
+              <h3 className="font-display font-semibold text-xl mb-2">Toronto-Based 🇨🇦</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Proudly serving Canadian businesses with local support and understanding of the Canadian market.
+                Proudly Canadian-incorporated. We understand the Canadian market and serve businesses locally and globally.
               </p>
             </div>
 
-            <div className="glass rounded-xl p-6">
+            <div className="gradient-border rounded-xl p-6">
               <Award className="h-8 w-8 text-primary mb-4" />
-              <h3 className="font-display font-semibold text-xl mb-2">Canadian Incorporated</h3>
+              <h3 className="font-display font-semibold text-xl mb-2">Founding Client Benefits</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Fully registered Canadian business operating with transparency and accountability.
+                20% off for early clients, white-glove service, and direct access. No account managers, just results.
               </p>
             </div>
 
-            <div className="glass rounded-xl p-6">
+            <div className="gradient-border rounded-xl p-6">
               <Users className="h-8 w-8 text-primary mb-4" />
-              <h3 className="font-display font-semibold text-xl mb-2">Partnership Approach</h3>
+              <h3 className="font-display font-semibold text-xl mb-2">Results-Obsessed</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                We're not just vendors—we're partners invested in your long-term success and growth.
+                We're building our portfolio. That means you get our absolute best work and attention.
               </p>
             </div>
           </div>

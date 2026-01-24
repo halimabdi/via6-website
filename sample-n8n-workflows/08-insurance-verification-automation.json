@@ -1,0 +1,342 @@
+{
+  "name": "Insurance Verification Pre-Appointment - Healthcare",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - New Appointment Booked",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "new-appointment"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "Patients!A:F",
+        "options": {
+          "range": "A:F",
+          "lookupColumn": "email",
+          "lookupValue": "={{ $json.patientEmail }}"
+        }
+      },
+      "name": "Get Patient Record",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.insurance_verified }}",
+              "operation": "equals",
+              "value2": "yes"
+            }
+          ]
+        }
+      },
+      "name": "Already Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.availity.com/eligibility",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "availityApi",
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({\n  memberId: $json.insurance_member_id,\n  provider: $json.insurance_provider,\n  dateOfBirth: $json.date_of_birth,\n  serviceType: '30',\n  practiceNPI: $env.PRACTICE_NPI\n}) }}"
+      },
+      "name": "Check Insurance Eligibility API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "1",
+          "name": "Availity API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json;\nconst patient = $('Get Patient Record').item.json;\n\nconst isActive = response.eligibility?.status === 'active';\nconst copay = response.eligibility?.copay || 'N/A';\nconst deductible = response.eligibility?.deductible || 'N/A';\nconst coinsurance = response.eligibility?.coinsurance || 'N/A';\nconst requiresAuth = response.eligibility?.authorizationRequired || false;\n\nreturn {\n  patientName: patient.first_name + ' ' + patient.last_name,\n  patientEmail: patient.email,\n  patientPhone: patient.phone,\n  insuranceProvider: patient.insurance_provider,\n  isActive: isActive,\n  copay: copay,\n  deductible: deductible,\n  coinsurance: coinsurance,\n  requiresAuth: requiresAuth,\n  appointmentDate: $('Webhook - New Appointment Booked').item.json.appointmentDate,\n  appointmentTime: $('Webhook - New Appointment Booked').item.json.appointmentTime,\n  verifiedAt: $now\n};"
+      },
+      "name": "Parse Eligibility Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isActive }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "name": "Insurance Active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_FRONT_DESK_CHANNEL }}",
+        "text": "⚠️ Insurance Verification Failed\n\n*Patient:* {{ $json.patientName }}\n*Provider:* {{ $json.insuranceProvider }}\n*Appointment:* {{ $json.appointmentDate }} at {{ $json.appointmentTime }}\n\n*Issue:* Insurance not active or verification failed\n\n👉 Staff needs to call patient before appointment"
+      },
+      "name": "Alert Staff (Inactive Insurance)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1450, 500],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromNumber": "={{ $env.TWILIO_PHONE }}",
+        "toNumber": "={{ $json.patientPhone }}",
+        "message": "Hi {{ $json.patientName }}, we're looking forward to seeing you on {{ $json.appointmentDate }} at {{ $json.appointmentTime }}.\n\nYour estimated copay: ${{ $json.copay }}\n{{ $json.requiresAuth ? '\\n⚠️ Note: Pre-authorization may be required. Our office will follow up.' : '' }}\n\nQuestions? Call us at {{ $env.PRACTICE_PHONE }}"
+      },
+      "name": "Send Patient Text (Verified)",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "credentials": {
+        "twilioApi": {
+          "id": "1",
+          "name": "Twilio"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.requiresAuth }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Requires Pre-Auth?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_BILLING_CHANNEL }}",
+        "text": "📋 Pre-Authorization Required\n\n*Patient:* {{ $json.patientName }}\n*Insurance:* {{ $json.insuranceProvider }}\n*Appointment:* {{ $json.appointmentDate }} at {{ $json.appointmentTime }}\n*Copay:* ${{ $json.copay }}\n\n👉 Start pre-auth process ASAP"
+      },
+      "name": "Alert Billing Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1850, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "Patients!A{{ $('Get Patient Record').item.json.row_number }}",
+        "options": {
+          "values": {
+            "insurance_verified": "yes",
+            "verified_date": "={{ $now }}",
+            "copay_amount": "={{ $json.copay }}",
+            "requires_preauth": "={{ $json.requiresAuth ? 'yes' : 'no' }}"
+          }
+        }
+      },
+      "name": "Update Patient Record",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [1850, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": \"Appointment confirmed and insurance verified\",\n  \"insuranceActive\": $json.isActive,\n  \"copay\": $json.copay,\n  \"requiresAuth\": $json.requiresAuth\n} }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": \"Appointment confirmed (insurance already verified)\"\n} }}"
+      },
+      "name": "Respond - Already Verified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 200]
+    }
+  ],
+  "connections": {
+    "Webhook - New Appointment Booked": {
+      "main": [
+        [
+          {
+            "node": "Get Patient Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Patient Record": {
+      "main": [
+        [
+          {
+            "node": "Already Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Verified?": {
+      "main": [
+        [
+          {
+            "node": "Respond - Already Verified",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Insurance Eligibility API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Insurance Eligibility API": {
+      "main": [
+        [
+          {
+            "node": "Parse Eligibility Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Eligibility Response": {
+      "main": [
+        [
+          {
+            "node": "Insurance Active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insurance Active?": {
+      "main": [
+        [
+          {
+            "node": "Send Patient Text (Verified)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Alert Staff (Inactive Insurance)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Patient Text (Verified)": {
+      "main": [
+        [
+          {
+            "node": "Requires Pre-Auth?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Requires Pre-Auth?": {
+      "main": [
+        [
+          {
+            "node": "Alert Billing Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Patient Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Patient Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Patient Record": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

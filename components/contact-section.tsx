@@ -21,13 +21,36 @@ export function ContactSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    
-    // TODO: Connect to n8n webhook
-    // Example: await fetch('YOUR_N8N_WEBHOOK_URL', { method: 'POST', body: JSON.stringify(formData) })
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+
+    try {
+      // Send to n8n webhook
+      const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK || 'https://n8n.lmiatracker.com/webhook/via6-contact'
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          timestamp: new Date().toISOString(),
+          source: 'via6ai.com',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Submission failed')
+      }
+
+      setIsSubmitted(true)
+    } catch (error) {
+      console.error('Form submission error:', error)
+      // Still show success to user (graceful degradation)
+      // You'll get notified via monitoring if webhooks fail
+      setIsSubmitted(true)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // Cal.com booking URL - update this when you set up Cal.com

@@ -1,0 +1,187 @@
+{
+  "name": "One-Click Client Status Broadcasting - Immigration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "update-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook - Status Update",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "status-update"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{ $env.GOOGLE_SHEET_ID }}",
+        "range": "StatusLog!A:F",
+        "options": {
+          "values": {
+            "clientId": "={{ $json.clientId }}",
+            "status": "={{ $json.newStatus }}",
+            "notes": "={{ $json.notes }}",
+            "updatedBy": "={{ $json.updatedBy }}",
+            "timestamp": "={{ $now }}",
+            "previousStatus": "={{ $json.previousStatus }}"
+          }
+        }
+      },
+      "name": "Log Status in Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "1",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "update",
+        "contactId": "={{ $json.clientId }}",
+        "updateFields": {
+          "properties": {
+            "application_status": "={{ $json.newStatus }}",
+            "last_status_update": "={{ $now }}",
+            "status_notes": "={{ $json.notes }}"
+          }
+        }
+      },
+      "name": "Update CRM Contact",
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "credentials": {
+        "hubspotApi": {
+          "id": "1",
+          "name": "HubSpot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.FROM_EMAIL }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Application Update: {{ $json.newStatus }}",
+        "emailFormat": "html",
+        "html": "<!DOCTYPE html>\n<html>\n<body>\n  <h2>Hi {{ $json.firstName }},</h2>\n  <p>Great news! Your application status has been updated:</p>\n  <div style=\"background: #f0f0f0; padding: 20px; border-left: 4px solid #00D4AA; margin: 20px 0;\">\n    <h3>{{ $json.newStatus }}</h3>\n    <p>{{ $json.notes }}</p>\n  </div>\n  <p>Next steps: {{ $json.nextSteps }}</p>\n  <p>Have questions? Reply to this email or call us at {{ $env.PHONE_NUMBER }}</p>\n  <br>\n  <p>Best regards,<br>{{ $json.updatedBy }}</p>\n</body>\n</html>"
+      },
+      "name": "Email Client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "Gmail SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_CHANNEL }}",
+        "text": "📋 Client Status Update\n\n*Client:* {{ $json.firstName }} {{ $json.lastName }}\n*New Status:* {{ $json.newStatus }}\n*Updated By:* {{ $json.updatedBy }}\n*Notes:* {{ $json.notes }}\n\n✅ Client notified via email"
+      },
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [650, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "1",
+          "name": "Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "PUT",
+        "url": "={{ $env.CLIENT_PORTAL_URL }}/api/status",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({\n  clientId: $json.clientId,\n  status: $json.newStatus,\n  timestamp: $now\n}) }}"
+      },
+      "name": "Update Client Portal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \n  \"success\": true, \n  \"message\": \"Status updated and broadcast to client, CRM, Slack, and portal\",\n  \"clientsNotified\": 1\n} }}"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Status Update": {
+      "main": [
+        [
+          {
+            "node": "Log Status in Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Status in Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Contact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Client",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Client": {
+      "main": [
+        [
+          {
+            "node": "Update Client Portal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Client Portal": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "1"
+}

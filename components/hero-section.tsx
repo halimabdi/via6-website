@@ -4,7 +4,7 @@ import Link from "next/link"
 
 export function HeroSection() {
   const calComUrl = "https://cal.com/via6ai/strategy-call"
-  
+
   return (
     <section className="relative pt-32 pb-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -12,9 +12,8 @@ export function HeroSection() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20 mb-8">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">Now accepting clients for Q1 2026</span>
+            <span className="text-sm text-muted-foreground">🎉 Founding Client Special: 20% Off First 10 Clients</span>
           </div>
-
           {/* Headline */}
           <h1 className="font-display font-bold text-5xl sm:text-6xl lg:text-7xl mb-6 text-balance">
             AI Agents That Work{" "}
@@ -39,7 +38,6 @@ export function HeroSection() {
               <Link href="#services">See How It Works</Link>
             </Button>
           </div>
-
           {/* Trust Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
             {[
@@ -56,6 +54,16 @@ export function HeroSection() {
             ))}
           </div>
         </div>
+      </div>
+      {/* Scroll Indicator */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 hidden md:block">
+        <Link 
+          href="#services" 
+          aria-label="Scroll to services"
+          className="w-6 h-10 border-2 border-muted-foreground/30 rounded-full flex justify-center pt-2 hover:border-primary/50 transition-colors"
+        >
+          <div className="w-1.5 h-3 bg-primary rounded-full animate-bounce" />
+        </Link>
       </div>
     </section>
   )

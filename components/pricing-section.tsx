@@ -79,7 +79,7 @@ export function PricingSection() {
             Transparent, <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Canadian-Friendly</span> Pricing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto text-pretty">
-            No hidden fees. All prices in Canadian dollars.
+            No hidden fees. All prices in Canadian dollars. 100% money-back guarantee.
           </p>
         </div>
 
