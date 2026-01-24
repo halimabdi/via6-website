@@ -160,6 +160,7 @@ All services deployed on Coolify (self-hosted)
 | **Invoicing** | Invoice Ninja | invoices.via6ai.com | 📋 Planned |
 | **Automation** | n8n | n8n.lmiatracker.com | ✅ Running |
 | **Email** | Google Workspace | hello@via6ai.com | 📋 To configure |
+| **Phone/SMS** | Twilio | +1 (416) XXX-XXXX | 📋 To configure |
 | **Analytics** | Umami | (embedded) | 📋 To add |
 
 ### Deployment

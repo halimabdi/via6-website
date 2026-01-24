@@ -163,6 +163,22 @@ Track:
 □ Time on page
 ```
 
+### Thursday Afternoon: Twilio Phone Setup
+```bash
+✅ Task: Business phone automation
+1. Sign up at twilio.com
+2. Buy Toronto phone number (+1 416/647/437)
+   Cost: $1/month
+3. Configure webhooks:
+   - SMS: https://n8n.lmiatracker.com/webhook/twilio-sms
+   - Voice: https://n8n.lmiatracker.com/webhook/twilio-voice
+4. Add phone to website (contact page + footer)
+5. Test SMS send/receive
+6. Set up auto-response workflow
+
+See: TWILIO_SETUP_GUIDE.md for complete setup
+```
+
 ### Friday: Testing & Optimization
 ```bash
 ✅ Task: Verify everything works
@@ -321,7 +337,89 @@ Schedule Kickoff Call → Create Slack Channel
 
 ---
 
-### Workflow 6: Weekly Metrics Report
+### Workflow 6: SMS Lead Capture (Twilio)
+```
+Priority: HIGH
+Time: 2 hours
+
+Flow:
+Someone texts your Twilio number → n8n Webhook
+  ↓
+Auto-response + Create CRM Contact + Slack Alert
+```
+
+**Auto-Response:**
+"Thanks for texting Via6 AI Labs! We'll call you within 2 hours. Or book instantly: [calendar link]"
+
+**Features:**
+- Extract phone, message, timestamp
+- Check if contact exists in CRM
+- Create/update contact with tag "sms-lead"
+- If message contains "urgent" → Call your phone immediately
+- Slack notification with phone number
+
+**Test:**
+- Text your Twilio number
+- Check auto-response received
+- Verify contact in CRM
+- Check Slack notification
+
+---
+
+### Workflow 7: Voicemail Transcription (Twilio)
+```
+Priority: MEDIUM
+Time: 3 hours
+
+Flow:
+Call to Twilio → Check if available → Forward OR Voicemail
+  ↓
+Transcribe → Email + SMS + CRM
+```
+
+**When Available:**
+- Forward call to your mobile
+
+**When Unavailable:**
+- Play greeting
+- Record voicemail
+- Transcribe to text (Twilio API)
+- Email transcription to you
+- SMS alert to your phone
+- Create contact in CRM with tag "voicemail-lead"
+
+**Test:**
+- Call Twilio number when "unavailable"
+- Leave voicemail
+- Check transcription email
+- Verify CRM contact
+
+---
+
+### Workflow 8: Booking Confirmation SMS (Twilio)
+```
+Priority: MEDIUM
+Time: 1 hour
+
+Flow:
+Google Calendar Event Created → n8n
+  ↓
+Send SMS Confirmation + Schedule Reminders
+```
+
+**Messages:**
+1. Immediate: "Hi [Name]! Your strategy call with Via6 AI Labs is confirmed for [Date] at [Time]. Meet link: [URL]"
+2. 24 hours before: "Reminder: Your call with Via6 AI is tomorrow at [Time]"
+3. 1 hour before: "Your Via6 call starts in 1 hour. Join: [Meet link]"
+
+**Benefits:**
+- Reduce no-shows by 50%
+- Professional communication
+- Automated touchpoints
+
+---
+
+### Workflow 9: Weekly Metrics Report
 ```
 Priority: LOW
 Time: 2 hours
@@ -333,6 +431,7 @@ Collect Data From:
 - Chatwoot: Conversations, response time
 - Twenty CRM: Leads, pipeline value, deals
 - Google Calendar: Calls booked
+- Twilio: SMS/calls handled
 - Uptime Kuma: Service uptime
 
 Generate:
