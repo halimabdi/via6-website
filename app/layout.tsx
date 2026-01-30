@@ -1,16 +1,17 @@
 import type { Metadata } from "next"
+import Script from "next/script"
 import "./globals.css"
 import { SchemaMarkup } from "@/components/schema-markup"
 
 export const metadata: Metadata = {
-  title: "Via6 AI Labs | AI Automation & Web Development | Toronto",
-  description: "Toronto-based AI automation agency. We build n8n workflows, AI agents, and Next.js web apps that eliminate manual work and scale your business. Founding client pricing available.",
-  keywords: "n8n automation Toronto, AI agents, workflow automation, Next.js development Toronto, web development Toronto, business automation, n8n agency Canada, automation agency Toronto",
+  title: "Via6 AI Labs | Complete Automation & Infrastructure Solutions | Toronto",
+  description: "From servers to SaaS: AI agents, no-code automation, custom development, server infrastructure, and app hosting. Self-hosted or fully managed. Toronto-based technology partner serving Canadian businesses.",
+  keywords: "n8n automation Toronto, AI agents, workflow automation, server setup Canada, self-hosted infrastructure, Docker deployment, Coolify hosting, custom API development, Next.js development Toronto, web development Toronto, business automation, automation agency Toronto, managed hosting Canada, PostgreSQL setup, Linux server management, full-stack automation",
   authors: [{ name: "Via6 AI Labs Inc." }],
   metadataBase: new URL("https://via6ai.com"),
   openGraph: {
-    title: "Via6 AI Labs | AI Automation & Web Development Experts",
-    description: "We build n8n workflows, AI agents, and modern web apps. Toronto-based automation & development agency.",
+    title: "Via6 AI Labs | Complete Automation & Infrastructure Solutions",
+    description: "AI agents, automation, custom development, server infrastructure & hosting. Self-hosted or fully managed. Complete technology partner for Canadian businesses.",
     url: "https://via6ai.com",
     siteName: "Via6 AI Labs",
     locale: "en_CA",
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Via6 AI Labs | AI Automation & Web Development",
-    description: "We build n8n workflows, AI agents, and modern web apps that scale your business.",
+    title: "Via6 AI Labs | Complete Automation & Infrastructure Solutions",
+    description: "From servers to SaaS: AI agents, automation, development, infrastructure & hosting. Self-hosted or fully managed.",
   },
   robots: {
     index: true,
@@ -63,7 +64,41 @@ export default function RootLayout({
         />
         <SchemaMarkup />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+
+        {/* Umami Analytics */}
+        {process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID && (
+          <Script
+            async
+            src={`${process.env.NEXT_PUBLIC_UMAMI_URL || 'http://100.68.66.127:3005'}/script.js`}
+            data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+            strategy="afterInteractive"
+          />
+        )}
+
+        {/* Chatwoot Live Chat Widget */}
+        {process.env.NEXT_PUBLIC_CHATWOOT_TOKEN && process.env.NEXT_PUBLIC_CHATWOOT_TOKEN !== 'REPLACE_WITH_YOUR_TOKEN' && (
+          <Script id="chatwoot-widget" strategy="lazyOnload">
+          {`
+            (function(d,t) {
+              var BASE_URL="${process.env.NEXT_PUBLIC_CHATWOOT_URL || 'https://chat.via6ai.com'}";
+              var g=d.createElement(t),s=d.getElementsByTagName(t)[0];
+              g.src=BASE_URL+"/packs/js/sdk.js";
+              g.defer = true;
+              g.async = true;
+              s.parentNode.insertBefore(g,s);
+              g.onload=function(){
+                window.chatwootSDK.run({
+                  websiteToken: '${process.env.NEXT_PUBLIC_CHATWOOT_TOKEN || 'REPLACE_WITH_YOUR_TOKEN'}',
+                  baseUrl: BASE_URL
+                })
+              }
+            })(document,"script");
+          `}
+          </Script>
+        )}
+      </body>
     </html>
   )
 }

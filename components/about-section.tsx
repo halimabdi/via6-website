@@ -7,18 +7,18 @@ export function AboutSection() {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="font-display font-bold text-4xl sm:text-5xl mb-6">
-              New Company,{" "}
+              Toronto's{" "}
               <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                Proven Expertise
+                Complete Technology Partner
               </span>
             </h2>
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              Via6 AI Labs is a new Canadian agency, which means you get founding client benefits:
-              direct access to the founder, priority treatment, and discounted rates.
+              Via6 AI Labs specializes in automation, custom development, and infrastructure solutions
+              for Canadian businesses. Direct access to experienced engineers who care about your success.
             </p>
             <p className="text-muted-foreground leading-relaxed mb-4">
-              We're building our reputation one satisfied client at a time. Your success is our success,
-              and we'll go above and beyond to earn your testimonial.
+              We're not just another agency—we're your dedicated technology partner. From strategy to
+              deployment to ongoing support, we're with you every step of the way.
             </p>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
               <span className="text-sm font-semibold text-primary">💯 100% Money-Back Guarantee</span>
@@ -36,9 +36,9 @@ export function AboutSection() {
 
             <div className="gradient-border rounded-xl p-6">
               <Award className="h-8 w-8 text-primary mb-4" />
-              <h3 className="font-display font-semibold text-xl mb-2">Founding Client Benefits</h3>
+              <h3 className="font-display font-semibold text-xl mb-2">White-Glove Service</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                20% off for early clients, white-glove service, and direct access. No account managers, just results.
+                Direct access to senior engineers. No account managers, no bureaucracy—just results.
               </p>
             </div>
 

@@ -24,7 +24,7 @@ export function ContactSection() {
 
     try {
       // Send to n8n webhook
-      const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK || 'https://n8n.lmiatracker.com/webhook/via6-contact'
+      const webhookUrl = process.env.NEXT_PUBLIC_N8N_WEBHOOK || 'https://n8n.via6ai.com/webhook/via6-contact'
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -54,7 +54,7 @@ export function ContactSection() {
   }
 
   // Cal.com booking URL - update this when you set up Cal.com
-  const calComUrl = "https://cal.com/via6ai/strategy-call"
+  const calComUrl = "https://calendar.app.google/UnyTsDBE7jnaXjkn7"
 
   return (
     <section id="contact" className="py-24 px-4 sm:px-6 lg:px-8">

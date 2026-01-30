@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Mail, Linkedin, MapPin } from "lucide-react"
+import { Mail, Linkedin, MapPin, Phone } from "lucide-react"
 
 export function Footer() {
   return (
@@ -83,6 +83,14 @@ export function Footer() {
                   hello@via6ai.com
                 </a>
               </li>
+              {process.env.NEXT_PUBLIC_PHONE_NUMBER && (
+                <li>
+                  <a href={`tel:${process.env.NEXT_PUBLIC_PHONE_NUMBER?.replace(/[^0-9+]/g, '')}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    {process.env.NEXT_PUBLIC_PHONE_NUMBER}
+                  </a>
+                </li>
+              )}
               <li className="text-sm text-muted-foreground flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Toronto, Ontario 🇨🇦

@@ -3,27 +3,22 @@ import { ArrowRight, Clock, TrendingUp, Zap, MapPin } from "lucide-react"
 import Link from "next/link"
 
 export function HeroSection() {
-  const calComUrl = "https://cal.com/via6ai/strategy-call"
+  const calComUrl = "https://calendar.app.google/UnyTsDBE7jnaXjkn7"
 
   return (
     <section className="relative pt-32 pb-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center max-w-4xl mx-auto">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-primary/20 mb-8">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-sm text-muted-foreground">🎉 Founding Client Special: 20% Off First 10 Clients</span>
-          </div>
           {/* Headline */}
           <h1 className="font-display font-bold text-5xl sm:text-6xl lg:text-7xl mb-6 text-balance">
-            AI Agents That Work{" "}
+            From Servers to SaaS:{" "}
             <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              While You Sleep
+              Complete Technology Solutions
             </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto text-pretty leading-relaxed">
-            We build intelligent automation systems that eliminate manual work, connect your tools, and scale your business. 
+            AI automation, custom development, server infrastructure, and app hosting. Self-hosted or fully managed.
             <span className="text-foreground font-medium"> Toronto-based. Results-obsessed.</span>
           </p>
 

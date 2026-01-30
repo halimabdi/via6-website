@@ -91,7 +91,7 @@ export default async function Image() {
             maxWidth: 800,
           }}
         >
-          AI Automation & Web Development | Toronto
+          Complete Automation & Infrastructure Solutions | Toronto
         </div>
 
         {/* Tag */}
@@ -109,7 +109,7 @@ export default async function Image() {
             fontWeight: '600',
           }}
         >
-          🎉 Founding Client Special: 20% Off
+          🇨🇦 Toronto-Based Technology Partner
         </div>
       </div>
     ),
