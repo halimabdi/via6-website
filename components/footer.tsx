@@ -100,12 +100,9 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="pt-8 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="pt-8 border-t border-border/50 flex items-center justify-center">
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Via6 AI Labs Inc. All rights reserved.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Made with ❤️ in Toronto 🇨🇦
           </p>
         </div>
       </div>
