@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Via6 AI Labs"
@@ -36,14 +36,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icon.tsx', sizes: '32x32', type: 'image/png' },
-      { url: '/logo-icon.svg', sizes: 'any', type: 'image/svg+xml' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/logo.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
-    apple: '/apple-icon.tsx',
+    apple: '/apple-touch-icon.png',
     other: [
       {
         rel: 'apple-touch-icon',
-        url: '/apple-icon.tsx',
+        url: '/apple-touch-icon.png',
       },
     ],
   },
@@ -62,6 +63,7 @@ export default function RootLayout({
           href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap"
           rel="stylesheet"
         />
+        <link rel="manifest" href="/site.webmanifest" />
         <SchemaMarkup />
       </head>
       <body className="antialiased">
