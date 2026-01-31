@@ -42,15 +42,23 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity group">
             <Image
               src="/logo.svg"
               alt="Via6 AI Labs"
-              width={220}
-              height={52}
-              className="h-11 sm:h-13 w-auto"
+              width={64}
+              height={64}
+              className="h-14 w-14 sm:h-16 sm:w-16"
               priority
             />
+            <div className="flex flex-col">
+              <span className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                Via6 AI Labs
+              </span>
+              <span className="text-sm sm:text-base text-primary font-semibold -mt-1">
+                Automation Experts
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
