@@ -8,23 +8,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 1,
     },
-    {
-      url: 'https://via6ai.com#services',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: 'https://via6ai.com#pricing',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: 'https://via6ai.com#contact',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
+    // Note: Hash URLs (#services, #pricing) are removed because Google doesn't index them
+    // Add separate pages here when you create them (e.g., /blog, /case-studies)
   ]
 }
